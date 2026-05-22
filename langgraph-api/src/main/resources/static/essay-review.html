@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作文批改系统 - 流式输出测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .comment-output {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 200px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .workflow-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 10px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .workflow-info h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .workflow-info ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .workflow-info li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 作文批改系统</h1>
+        <p class="subtitle">基于 LangGraph 工作流 + 流式输出评语</p>
+
+        <form id="essayForm">
+            <div class="form-group">
+                <label for="studentName">学生姓名：</label>
+                <input type="text" id="studentName" name="studentName" value="张三" required>
+            </div>
+
+            <div class="form-group">
+                <label for="essayTopic">作文题目：</label>
+                <input type="text" id="essayTopic" name="essayTopic" value="生活中的美好" required>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                提交批改请求
+            </button>
+        </form>
+
+        <div class="result-section" id="resultSection" style="display: none;">
+            <h2>👨‍🏫 教师评语（流式输出）</h2>
+            <div class="comment-output" id="commentOutput"></div>
+            <div id="statusMessage"></div>
+        </div>
+
+        <div class="workflow-info">
+            <h3>📊 工作流程说明</h3>
+            <ol>
+                <li><strong>布置作文作业</strong> - 系统根据题目生成作业要求</li>
+                <li><strong>学生提交作文</strong> - 模拟学生完成并提交作文</li>
+                <li><strong>教师批改作文</strong> - AI 教师阅读作文并流式输出评语 ✨</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('essayForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultSection = document.getElementById('resultSection');
+        const commentOutput = document.getElementById('commentOutput');
+        const statusMessage = document.getElementById('statusMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const studentName = document.getElementById('studentName').value;
+            const essayTopic = document.getElementById('essayTopic').value;
+
+            // 重置输出
+            commentOutput.textContent = '';
+            statusMessage.innerHTML = '';
+            resultSection.style.display = 'block';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '批改中... <span class="loading"></span>';
+
+            showStatus('info', '正在连接服务器，开始批改流程...');
+
+            try {
+                // 使用 EventSource 接收 SSE 流式数据
+                const url = `/api/essay/review?studentName=${encodeURIComponent(studentName)}&essayTopic=${encodeURIComponent(essayTopic)}`;
+                
+                const eventSource = new EventSource(url);
+                let fullComment = '';
+
+                eventSource.onmessage = (event) => {
+                    // 实时追加流式输出的文本
+                    fullComment += event.data;
+                    commentOutput.textContent = fullComment;
+                    
+                    // 自动滚动到底部
+                    commentOutput.scrollTop = commentOutput.scrollHeight;
+                };
+
+                eventSource.addEventListener('complete', (event) => {
+                    eventSource.close();
+                    showStatus('success', '✅ 批改完成！');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '提交批改请求';
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    showStatus('error', '❌ 连接错误，请检查服务器是否运行');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '提交批改请求';
+                };
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('error', `❌ 请求失败: ${error.message}`);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交批改请求';
+            }
+        });
+
+        function showStatus(type, message) {
+            statusMessage.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

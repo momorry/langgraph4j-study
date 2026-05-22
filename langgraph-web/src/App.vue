@@ -1,0 +1,83 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import MarketReportChat from './components/MarketReportChat.vue'
+import EssayReviewChat from './components/EssayReviewChat.vue'
+import EssayMultiTurnChat from './components/EssayMultiTurnChat.vue'
+
+type TabKey = 'market-report' | 'essay-review' | 'essay-multi-turn'
+
+const activeTab = ref<TabKey>('essay-multi-turn')
+</script>
+
+<template>
+  <div class="app-container">
+    <nav class="tab-nav">
+      <button
+        :class="['tab-button', { active: activeTab === 'market-report' }]"
+        @click="activeTab = 'market-report'"
+      >
+        📊 市场简报
+      </button>
+      <button
+        :class="['tab-button', { active: activeTab === 'essay-review' }]"
+        @click="activeTab = 'essay-review'"
+      >
+        📝 作文批改（单次）
+      </button>
+      <button
+        :class="['tab-button', { active: activeTab === 'essay-multi-turn' }]"
+        @click="activeTab = 'essay-multi-turn'"
+      >
+        💬 作文批改（多轮对话）
+      </button>
+    </nav>
+
+    <div class="tab-content">
+      <MarketReportChat v-if="activeTab === 'market-report'" />
+      <EssayReviewChat v-else-if="activeTab === 'essay-review'" />
+      <EssayMultiTurnChat v-else-if="activeTab === 'essay-multi-turn'" />
+    </div>
+  </div>
+</template>
+
+<style>
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.tab-button.active {
+  background: var(--accent);
+  color: #0f1419;
+  border-color: var(--accent);
+}
+
+.tab-content {
+  flex: 1;
+}
+</style>

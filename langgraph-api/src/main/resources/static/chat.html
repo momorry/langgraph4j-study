@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>市场简报生成</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e7edf4;
+      --muted: #8b9cb3;
+      --user: #2563eb;
+      --assistant: #334155;
+      --accent: #38bdf8;
+      --error: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    header code {
+      font-size: 0.85em;
+      color: var(--accent);
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--user);
+      color: #fff;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      max-width: 100%;
+      background: var(--assistant);
+      border: 1px solid var(--border);
+    }
+    .msg.error {
+      align-self: stretch;
+      max-width: none;
+      background: rgba(248, 113, 113, 0.12);
+      border: 1px solid var(--error);
+      color: var(--error);
+      font-size: 0.9rem;
+    }
+    .msg.assistant.streaming::after {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 1em;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: blink 0.9s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    footer {
+      padding: 0.75rem 1rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .report-form {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      flex: 1;
+      min-width: 10rem;
+    }
+    .field.full {
+      flex: 1 1 100%;
+    }
+    label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    input[type="date"],
+    textarea {
+      padding: 0.55rem 0.7rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      line-height: 1.4;
+    }
+    textarea {
+      min-height: 4.5rem;
+      resize: vertical;
+    }
+    input[type="date"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 0.15rem;
+    }
+    button {
+      padding: 0.6rem 1.1rem;
+      border: none;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #0f1419;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover:not(:disabled) {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>市场简报生成</h1>
+    <p>填写日期区间与个股代码后，通过 POST <code>/api/market-report/generate</code> 流式生成简报。请从本服务地址打开本页（例如 <code>http://localhost:8080/chat.html</code>）。</p>
+  </header>
+  <div id="messages" aria-live="polite"></div>
+  <footer>
+    <form class="report-form" id="reportForm">
+      <div class="form-row">
+        <div class="field">
+          <label for="startDate">开始日期</label>
+          <input type="date" id="startDate" name="startDate" required />
+        </div>
+        <div class="field">
+          <label for="endDate">结束日期</label>
+          <input type="date" id="endDate" name="endDate" required />
+        </div>
+      </div>
+      <div class="field full">
+        <label for="stockCodes">个股代码列表</label>
+        <textarea
+          id="stockCodes"
+          name="stockCodes"
+          rows="3"
+          placeholder="多个代码用逗号、空格或换行分隔，例如：&#10;600519&#10;000001,600036"
+          required
+        ></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="stop" class="secondary" disabled>停止</button>
+        <button type="submit" id="generate">生成简报</button>
+      </div>
+    </form>
+  </footer>
+  <script>
+    (function () {
+      const API_URL = "/api/market-report/generate";
+      const messagesEl = document.getElementById("messages");
+      const formEl = document.getElementById("reportForm");
+      const startDateEl = document.getElementById("startDate");
+      const endDateEl = document.getElementById("endDate");
+      const stockCodesEl = document.getElementById("stockCodes");
+      const generateBtn = document.getElementById("generate");
+      const stopBtn = document.getElementById("stop");
+
+      let abortController = null;
+
+      function appendMessage(role, text, extraClass) {
+        const div = document.createElement("div");
+        div.className = "msg " + role + (extraClass ? " " + extraClass : "");
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+      }
+
+      function showError(msg) {
+        appendMessage("error", msg, "error");
+      }
+
+      function parseStockCodes(raw) {
+        return raw
+          .split(/[\s,，;；]+/)
+          .map(function (s) { return s.trim(); })
+          .filter(Boolean);
+      }
+
+      function buildRequestSummary(body) {
+        return (
+          "开始日期：" + body.startDate + "\n" +
+          "结束日期：" + body.endDate + "\n" +
+          "个股代码：" + body.stockCodes.join(", ")
+        );
+      }
+
+      function appendSseData(buffer, line) {
+        if (!line.startsWith("data:")) return buffer;
+        var payload = line.slice(5);
+        if (payload.startsWith(" ")) payload = payload.slice(1);
+        return buffer + payload;
+      }
+
+      function processSseChunk(raw, onData) {
+        var parts = raw.split("\n\n");
+        var remainder = parts.pop() || "";
+        for (var i = 0; i < parts.length; i++) {
+          var lines = parts[i].split("\n");
+          var dataLines = [];
+          for (var j = 0; j < lines.length; j++) {
+            if (lines[j].startsWith("data:")) {
+              var payload = lines[j].slice(5);
+              if (payload.startsWith(" ")) payload = payload.slice(1);
+              dataLines.push(payload);
+            } else if (lines[j].startsWith("event:") || lines[j].startsWith("id:") || lines[j].startsWith(":")) {
+              continue;
+            } else if (lines[j] === "") {
+              continue;
+            } else {
+              dataLines.push(lines[j]);
+            }
+          }
+          if (dataLines.length) onData(dataLines.join("\n"));
+        }
+        return remainder;
+      }
+
+      async function streamReport(body) {
+        abortController = new AbortController();
+        const assistantEl = appendMessage("assistant", "", "streaming");
+        stopBtn.disabled = false;
+        generateBtn.disabled = true;
+        const token = ''
+        try {
+          const res = await fetch(API_URL, {
+            method: "POST",
+            signal: abortController.signal,
+            headers: {
+              Accept: "text/event-stream",
+              "Content-Type": "application/json",
+              "Authorization": token
+            },
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) {
+            assistantEl.remove();
+            var errText = "";
+            try { errText = await res.text(); } catch (_) {}
+            showError("请求失败：" + res.status + " " + res.statusText + (errText ? "\n" + errText : ""));
+            return;
+          }
+
+          const reader = res.body && res.body.getReader();
+          if (!reader) {
+            assistantEl.textContent = await res.text();
+            assistantEl.classList.remove("streaming");
+            return;
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let sseRemainder = "";
+          const contentType = (res.headers.get("content-type") || "").toLowerCase();
+          const isSse = contentType.indexOf("text/event-stream") !== -1;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            if (isSse) {
+              sseRemainder += chunk;
+              sseRemainder = processSseChunk(sseRemainder, function (data) {
+                buffer += data;
+              });
+            } else {
+              buffer += chunk;
+            }
+            assistantEl.textContent = buffer;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+
+          const tail = decoder.decode();
+          if (tail) {
+            if (isSse) {
+              sseRemainder += tail;
+            } else {
+              buffer += tail;
+            }
+          }
+
+          if (isSse && sseRemainder.trim()) {
+            sseRemainder = processSseChunk(sseRemainder + "\n\n", function (data) {
+              buffer += data;
+            });
+            if (sseRemainder.trim() && !sseRemainder.includes("data:")) {
+              buffer += sseRemainder;
+            } else if (sseRemainder.trim()) {
+              buffer += appendSseData("", sseRemainder.trim().split("\n")[0]);
+            }
+          }
+
+          assistantEl.textContent = buffer;
+          assistantEl.classList.remove("streaming");
+        } catch (e) {
+          if (e.name === "AbortError") {
+            assistantEl.classList.remove("streaming");
+            if (!assistantEl.textContent) assistantEl.remove();
+          } else {
+            assistantEl.remove();
+            showError(String(e.message || e));
+          }
+        } finally {
+          stopBtn.disabled = true;
+          generateBtn.disabled = false;
+          abortController = null;
+        }
+      }
+
+      formEl.addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const startDate = startDateEl.value;
+        const endDate = endDateEl.value;
+        const stockCodes = parseStockCodes(stockCodesEl.value);
+
+        if (!startDate || !endDate) {
+          showError("请填写开始日期与结束日期。");
+          return;
+        }
+        if (startDate > endDate) {
+          showError("开始日期不能晚于结束日期。");
+          return;
+        }
+        if (!stockCodes.length) {
+          showError("请至少填写一个个股代码。");
+          return;
+        }
+
+        const body = { startDate: startDate, endDate: endDate, stockCodes: stockCodes };
+        appendMessage("user", buildRequestSummary(body));
+        streamReport(body);
+      });
+
+      stopBtn.addEventListener("click", function () {
+        if (abortController) abortController.abort();
+      });
+    })();
+  </script>
+</body>
+</html>

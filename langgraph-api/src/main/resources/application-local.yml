@@ -1,0 +1,22 @@
+langchain4j:
+  open-ai:
+    chat-model:
+      base-url: 111
+      api-key: 111
+      model-name: 111
+      log-requests: true
+      log-responses: true
+    # Flux / TokenStream 等流式调用需要 StreamingChatModel，与 chat-model 分开注册
+    streaming-chat-model:
+      base-url: 111
+      api-key: 111
+      model-name: 111
+      log-requests: true
+      log-responses: true
+
+logging:
+  config: classpath:spring-logback.xml
+  level:
+    root: info
+    com:
+      shangjian: debug

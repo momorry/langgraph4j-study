@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: langgraph-api
+  profiles:
+    active: local
+server:
+  port: 8080
+
+market-report:
+  reports-url: http://127.0.0.1:9204/public-reports
+  report-detail-url: http://127.0.0.1:9204/public-report-detail
+
