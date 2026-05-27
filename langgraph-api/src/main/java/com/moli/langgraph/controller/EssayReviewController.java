@@ -2,7 +2,7 @@ package com.moli.langgraph.controller;
 
 import com.moli.langgraph.context.EssaySession;
 import com.moli.langgraph.service.EssayConversationManager;
-import com.moli.langgraph.workflow.EssayReviewApp;
+import com.moli.langgraph.graph.workflow.EssayReviewApp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;

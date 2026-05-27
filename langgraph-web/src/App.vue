@@ -1,10 +1,10 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script setup lang="ts">import { ref } from 'vue'
 import MarketReportChat from './components/MarketReportChat.vue'
+import MarketReportChatV3 from './components/MarketReportChatV3.vue'
 import EssayReviewChat from './components/EssayReviewChat.vue'
 import EssayMultiTurnChat from './components/EssayMultiTurnChat.vue'
 
-type TabKey = 'market-report' | 'essay-review' | 'essay-multi-turn'
+type TabKey = 'market-report' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn'
 
 const activeTab = ref<TabKey>('essay-multi-turn')
 </script>
@@ -13,20 +13,26 @@ const activeTab = ref<TabKey>('essay-multi-turn')
   <div class="app-container">
     <nav class="tab-nav">
       <button
-        :class="['tab-button', { active: activeTab === 'market-report' }]"
-        @click="activeTab = 'market-report'"
+              :class="['tab-button', { active: activeTab === 'market-report' }]"
+              @click="activeTab = 'market-report'"
       >
         📊 市场简报
       </button>
       <button
-        :class="['tab-button', { active: activeTab === 'essay-review' }]"
-        @click="activeTab = 'essay-review'"
+              :class="['tab-button', { active: activeTab === 'market-report-v3' }]"
+              @click="activeTab = 'market-report-v3'"
+      >
+        📊 市场简报V3
+      </button>
+      <button
+              :class="['tab-button', { active: activeTab === 'essay-review' }]"
+              @click="activeTab = 'essay-review'"
       >
         📝 作文批改（单次）
       </button>
       <button
-        :class="['tab-button', { active: activeTab === 'essay-multi-turn' }]"
-        @click="activeTab = 'essay-multi-turn'"
+              :class="['tab-button', { active: activeTab === 'essay-multi-turn' }]"
+              @click="activeTab = 'essay-multi-turn'"
       >
         💬 作文批改（多轮对话）
       </button>
@@ -34,6 +40,7 @@ const activeTab = ref<TabKey>('essay-multi-turn')
 
     <div class="tab-content">
       <MarketReportChat v-if="activeTab === 'market-report'" />
+      <MarketReportChatV3 v-else-if="activeTab === 'market-report-v3'" />
       <EssayReviewChat v-else-if="activeTab === 'essay-review'" />
       <EssayMultiTurnChat v-else-if="activeTab === 'essay-multi-turn'" />
     </div>

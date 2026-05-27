@@ -20,3 +20,10 @@ logging:
     root: info
     com:
       shangjian: debug
+
+
+market-report:
+  token: Bearer 1.eyJzc29BY2Nlc3NUb2tlbiI6ImRhZWNhOGNiLWVmZTMtNDY2Zi05N2JhLWVkZTcxNTE1MmFhYiIsInNzb1JlZnJlc2hUb2tlbiI6ImRmYTNkZWU2LTI4NzUtNDUwOS05OTUzLWE5MzZlYTIwNzg5ZiIsInN0YXR1c0Rlc2MiOiLlnKjogYwiLCJuYW1lIjoi6buE5pWP6ImvIiwic3lzQWRtaW4iOnRydWUsInRva2VuVHlwZSI6ImFjY2Vzc190b2tlbiIsInVzZXJOYW1lIjoiaHVhbmdtaW5saWFuZyIsImV4cCI6MTc3OTk0OTY0NCwic3VwZXJBZG1pbiI6dHJ1ZSwidXNlcklkIjoxODksImlhdCI6MTc3OTA4NTY0NCwic3RhdHVzIjoxfQ.ZCjOfRTlPiGdomtwXptDWIhR1XuuP8vVbHYWWg7GzwI
+  reports-url: http://127.0.0.1:9204/public-reports
+  report-detail-url: http://127.0.0.1:9204/public-report-detail
+  report-details-url: http://127.0.0.1:9204/public-reports-detail

@@ -1,9 +1,7 @@
 package com.moli.langgraph.service;
 
 import com.moli.langgraph.context.EssaySession;
-import com.moli.langgraph.workflow.EssayReviewApp;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.UserMessage;
+import com.moli.langgraph.graph.workflow.EssayReviewApp;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;

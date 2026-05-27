@@ -1,8 +1,7 @@
 package com.moli.langgraph.controller;
 
 import com.moli.langgraph.model.MarketReportReq;
-import com.moli.langgraph.workflow.MarketReportApp;
-import com.moli.langgraph.workflow.MarketReportAppV1;
+import com.moli.langgraph.graph.workflow.MarketReportAppV1;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
