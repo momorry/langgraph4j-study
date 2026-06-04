@@ -31,7 +31,7 @@ public class SummaryItemNodeV3 implements NodeAction<MarketReportStateV3> {
         Map<String, List<McpThsReportDetailDto>> rptGrpMap = detailDtos.stream().collect(Collectors.groupingBy(McpThsReportDetailDto::getReportId));
         rptGrpMap.forEach((reportId, v) -> {
             String groupDetail = v.stream()
-                    .map(McpThsReportDetailDto::getFormatReportContent)
+                    .map(McpThsReportDetailDto::getReportText)
                     .collect(Collectors.joining("\n"));
             String summary = marketReportService.summary(groupDetail);
             totalSummary.append(summary).append("\n");

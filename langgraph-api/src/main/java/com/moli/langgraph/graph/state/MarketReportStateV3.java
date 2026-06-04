@@ -23,6 +23,7 @@ public class MarketReportStateV3 extends AgentState {
     public static final String REPORT_ITEM_DETAIL = "reportItemDetail";
     public static final String REPORT_ITEM_SUMMARY = "reportItemSummary";
     public static final String REPORT_SUMMARY_MERGE = "reportSummaryMerge";
+    public static final String _STREAMING_MESSAGES = "_streaming_messages";
 
     public MarketReportStateV3(Map<String, Object> initData) {
         super(initData);

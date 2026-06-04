@@ -46,7 +46,6 @@ public class MarketReportGraph {
                                                   Map<String, Object> initState, FluxSink<String> sink) {
         for (var output : graph.stream(initState)) {
             if (output instanceof NodeOutput<?> nodeOutput) {
-                log.info("执行节点: {} \n\n {}", nodeOutput.node() , output.state().data());
                 if (output instanceof StreamingOutput<MarketReportStateV3> streaming) {
                     String chunk = streaming.chunk();
                     log.info("stream chunk:{}", chunk);

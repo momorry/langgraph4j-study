@@ -16,7 +16,7 @@ import static org.bsc.langgraph4j.StateGraph.START;
 import java.util.Map;
 
 @Slf4j
-public class WorkflowApp {
+public class CathApp {
     public static void main(String[] args) throws GraphStateException {
         // 创建工作流图
         CompiledGraph<MessagesState> workflow = new MessagesStateGraph<>()

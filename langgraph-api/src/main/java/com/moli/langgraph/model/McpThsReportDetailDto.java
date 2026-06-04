@@ -54,7 +54,7 @@ public class McpThsReportDetailDto implements Serializable {
     /**
      * 原文内容：格式化后
      */
-    private String formatReportContent;
+    private String reportText;
 
     private boolean isImportant;
 }
