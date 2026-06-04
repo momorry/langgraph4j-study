@@ -3,20 +3,16 @@ package com.moli.langgraph.graph.graph;
 import com.moli.langgraph.ai.service.MarketReportService;
 import com.moli.langgraph.client.MarketReportApiClient;
 import com.moli.langgraph.graph.nodes.market.report.QueryReportsDetailNodeV3;
+import com.moli.langgraph.graph.nodes.market.report.RouteMergeNode;
 import com.moli.langgraph.graph.nodes.market.report.SummaryItemNodeV3;
-import com.moli.langgraph.graph.nodes.market.report.SummaryMergeNodeV3;
 import com.moli.langgraph.graph.state.MarketReportStateV3;
 import com.moli.langgraph.model.MarketReportReq;
-import com.moli.langgraph.util.JsonUtil;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphStateException;
-import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.StateGraph;
-import org.bsc.langgraph4j.streaming.StreamingOutput;
-import reactor.core.publisher.FluxSink;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,39 +36,40 @@ public class MarketReportGraph {
     private final MarketReportService marketReportService;
 
     /**
-     * 执行图的前置节点（不包含流式输出节点）
+     * 执行图的预处理节点（query_reports + summary_item），返回预处理后的状态。
+     * 合并总结的流式输出由调用方在图外部直接使用 StreamingChatModel 完成。
      */
-    public void runPreprocessGraph(CompiledGraph<MarketReportStateV3> graph,
-                                                  Map<String, Object> initState, FluxSink<String> sink) {
+    public MarketReportStateV3 runPreprocessGraph(CompiledGraph<MarketReportStateV3> graph,
+                                                  Map<String, Object> initState) throws Exception {
+        MarketReportStateV3 finalState = null;
         for (var output : graph.stream(initState)) {
-            if (output instanceof NodeOutput<?> nodeOutput) {
-                if (output instanceof StreamingOutput<MarketReportStateV3> streaming) {
-                    String chunk = streaming.chunk();
-                    log.info("stream chunk:{}", chunk);
-                    sink.next(chunk);
-                } else {
-//                    sink.next(JsonUtil.obj2String(output.state().data()));
-                }
+            if (output.state() instanceof MarketReportStateV3 s) {
+                finalState = s;
             }
         }
-        sink.complete();
+        return finalState;
     }
 
     /**
      * 构建工作流图
+     * <p>
+     * 图结构：START → query_reports → summary_item → route_merge → END
+     * <p>
+     * route_merge 节点根据数据量决策出口（写入 state.EXIT_NODE），
+     * 图外的调用方据此分发不同的流式操作。
      */
     public CompiledGraph<MarketReportStateV3> buildGraph() throws GraphStateException {
         return new StateGraph<>(MarketReportStateV3.SCHEMA, MarketReportStateV3::new)
-                // 添加节点
+                // 添加节点：预处理 + 路由决策
                 .addNode("query_reports", node_async(new QueryReportsDetailNodeV3(marketReportApiClient)))
                 .addNode("summary_item", node_async(new SummaryItemNodeV3(marketReportService)))
-                .addNode("summary_merge", node_async(new SummaryMergeNodeV3(marketReportService)))
+                .addNode("route_merge", node_async(new RouteMergeNode()))
 
                 // 添加边
                 .addEdge(START, "query_reports")
                 .addEdge("query_reports", "summary_item")
-                .addEdge("summary_item", "summary_merge")
-                .addEdge("summary_merge", END)
+                .addEdge("summary_item", "route_merge")
+                .addEdge("route_merge", END)
                 // 编译图
                 .compile();
     }
