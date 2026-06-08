@@ -1,24 +1,38 @@
 <script setup lang="ts">
     import { nextTick, ref } from 'vue'
     import { generateMarketReportV3 } from '../api/marketReportV3'
-    import type { ChatMessage, MarketReportRequest } from '../types/marketReport'
+    import type { MarketReportRequest, TimelineNode } from '../types/marketReport'
+
+    /** 展开/折叠 data 详情 */
+    const expandedNodes = ref<Set<string>>(new Set())
+
+    function toggleExpand(name: string): void {
+        if (expandedNodes.value.has(name)) {
+            expandedNodes.value.delete(name)
+        } else {
+            expandedNodes.value.add(name)
+        }
+    }
+
+    function formatData(raw: string): string {
+        try {
+            const parsed = JSON.parse(raw)
+            return JSON.stringify(parsed, null, 2)
+        } catch {
+            return raw
+        }
+    }
 
     const startDate = ref('2025-05-20')
     const endDate = ref('2025-05-20')
     const stockCodesInput = ref('300750.SZ')
-    const messages = ref<ChatMessage[]>([])
     const isGenerating = ref(false)
     const messagesContainer = ref<HTMLElement | null>(null)
 
-    const streamingMessageId = ref<string | null>(null)
+    const timelineNodes = ref<TimelineNode[]>([])
+    const streamingContent = ref('')
 
     let abortController: AbortController | null = null
-    let messageCounter = 0
-
-    function createMessageId(): string {
-        messageCounter += 1
-        return `msg-${Date.now()}-${messageCounter}`
-    }
 
     function parseStockCodes(raw: string): string[] {
         return raw
@@ -35,32 +49,17 @@
         ].join('\n')
     }
 
-    function appendError(text: string): void {
-        messages.value.push({
-            id: createMessageId(),
-            role: 'error',
-            content: text,
-        })
-    }
-
     function validateForm(): string | null {
         if (!startDate.value || !endDate.value) {
             return '请填写开始日期与结束日期。'
         }
-
         if (startDate.value > endDate.value) {
             return '开始日期不能晚于结束日期。'
         }
-
         if (parseStockCodes(stockCodesInput.value).length === 0) {
             return '请至少填写一个个股代码。'
         }
-
         return null
-    }
-
-    function isMessageStreaming(message: ChatMessage): boolean {
-        return message.role === 'assistant' && message.id === streamingMessageId.value && isGenerating.value
     }
 
     async function scrollToBottom(): Promise<void> {
@@ -75,11 +74,25 @@
         abortController?.abort()
     }
 
+    function handleNodeEvent(node: TimelineNode): void {
+        const existing = timelineNodes.value.find((n) => n.name === node.name)
+        if (existing) {
+            Object.assign(existing, node)
+        } else {
+            timelineNodes.value.push({ ...node })
+        }
+        void scrollToBottom()
+    }
+
+    function handleContentEvent(snapshot: string): void {
+        streamingContent.value = snapshot
+        void scrollToBottom()
+    }
+
     async function handleGenerate(): Promise<void> {
         const validationMessage = validateForm()
         if (validationMessage) {
-            appendError(validationMessage)
-            await scrollToBottom()
+            alert(validationMessage)
             return
         }
 
@@ -89,55 +102,26 @@
             stockCodes: parseStockCodes(stockCodesInput.value),
         }
 
-        messages.value.push({
-            id: createMessageId(),
-            role: 'user',
-            content: buildRequestSummary(body),
-        })
-
-        const assistantId = createMessageId()
-        streamingMessageId.value = assistantId
-
-        messages.value.push({
-            id: assistantId,
-            role: 'assistant',
-            content: '',
-            streaming: true,
-        })
-        const assistantIndex = messages.value.length - 1
-        await scrollToBottom()
+        // 重置状态
+        timelineNodes.value = []
+        streamingContent.value = ''
+        expandedNodes.value.clear()
+        isGenerating.value = true
 
         abortController = new AbortController()
-        isGenerating.value = true
 
         try {
             await generateMarketReportV3(body, {
                 signal: abortController.signal,
-                onEvent: (data) => {
-                    const assistant = messages.value[assistantIndex]
-                    if (assistant) {
-                        assistant.content = data
-                    }
-                    void scrollToBottom()
-                },
+                onNode: handleNodeEvent,
+                onContent: handleContentEvent,
             })
         } catch (error) {
-            const assistant = messages.value[assistantIndex]
             if (error instanceof DOMException && error.name === 'AbortError') {
-                if (!assistant?.content.trim()) {
-                    messages.value = messages.value.filter((message) => message.id !== assistantId)
-                }
                 return
             }
-
-            messages.value = messages.value.filter((message) => message.id !== assistantId)
-            appendError(error instanceof Error ? error.message : String(error))
+            alert(error instanceof Error ? error.message : String(error))
         } finally {
-            streamingMessageId.value = null
-            const assistant = messages.value[assistantIndex]
-            if (assistant) {
-                assistant.streaming = false
-            }
             isGenerating.value = false
             abortController = null
             await scrollToBottom()
@@ -157,15 +141,69 @@
             </p>
         </header>
 
-        <section ref="messagesContainer" class="messages" aria-live="polite">
-            <article
-                    v-for="message in messages"
-                    :key="message.id"
-                    class="msg"
-                    :class="[message.role, { streaming: isMessageStreaming(message) }]"
-            >
-                {{ message.content }}
-            </article>
+        <section ref="messagesContainer" class="main-content">
+            <!-- 请求信息 -->
+            <div v-if="timelineNodes.length > 0" class="request-summary">
+                <div class="request-label">📋 请求参数</div>
+                <div class="request-detail">{{ buildRequestSummary({ startDate, endDate, stockCodes: parseStockCodes(stockCodesInput) }) }}</div>
+            </div>
+
+            <!-- 垂直时间线 -->
+            <div v-if="timelineNodes.length > 0" class="timeline">
+                <div
+                    v-for="(node, index) in timelineNodes"
+                    :key="node.name"
+                    class="timeline-item"
+                    :class="node.status"
+                >
+                    <!-- 连接线 -->
+                    <div class="timeline-connector">
+                        <div class="timeline-dot" :class="node.status">
+                            <svg v-if="node.status === 'done'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+                            </svg>
+                            <div v-else-if="node.status === 'running'" class="dot-pulse"></div>
+                            <svg v-else-if="node.status === 'error'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/>
+                            </svg>
+                        </div>
+                        <div v-if="index < timelineNodes.length - 1 || streamingContent" class="timeline-line" :class="node.status"></div>
+                    </div>
+                    <!-- 节点内容 -->
+                    <div class="timeline-content">
+                        <div class="node-header">
+                            <span class="timeline-label">{{ node.name }}</span>
+                            <span class="node-cost" v-if="node.costTime">⏱ {{ node.costTime }}</span>
+                            <span class="node-status-tag" :class="node.status">
+                                <template v-if="node.status === 'running'">执行中</template>
+                                <template v-else-if="node.status === 'done'">完成</template>
+                                <template v-else>失败</template>
+                            </span>
+                        </div>
+                        <div v-if="node.message" class="node-message">{{ node.message }}</div>
+                        <div v-if="node.data" class="node-data-section">
+                            <button class="node-data-toggle" @click="toggleExpand(node.name)">
+                                {{ expandedNodes.has(node.name) ? '收起数据 ▼' : '查看数据 ▶' }}
+                            </button>
+                            <pre v-if="expandedNodes.has(node.name)" class="node-data-content">{{ formatData(node.data) }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 流式输出内容 -->
+            <div v-if="streamingContent" class="streaming-output">
+                <div class="output-header">📝 生成报告</div>
+                <div class="output-content" :class="{ active: isGenerating }">
+                    {{ streamingContent }}<span v-if="isGenerating" class="cursor-blink"></span>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="timelineNodes.length === 0 && !isGenerating" class="empty-state">
+                <div class="empty-icon">📊</div>
+                <p>填写参数后点击“生成简报”开始</p>
+            </div>
         </section>
 
         <footer class="chat-footer">
@@ -233,72 +271,276 @@
         color: var(--accent);
     }
 
-    .messages {
+    .main-content {
         flex: 1;
         overflow-y: auto;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
+        padding: 1.5rem;
         max-width: 52rem;
         width: 100%;
         margin: 0 auto;
     }
 
-    .msg {
-        max-width: 85%;
-        padding: 0.65rem 0.9rem;
+    /* 请求摘要 */
+    .request-summary {
+        background: var(--panel, #f8f9fa);
+        border: 1px solid var(--border, #e2e8f0);
         border-radius: 12px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .request-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text, #1a202c);
+        margin-bottom: 0.35rem;
+    }
+
+    .request-detail {
+        font-size: 0.8rem;
+        color: var(--muted, #718096);
+        white-space: pre-wrap;
         line-height: 1.5;
+    }
+
+    /* 垂直时间线 */
+    .timeline {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 0.75rem;
+        position: relative;
+    }
+
+    .timeline-connector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-shrink: 0;
+        width: 28px;
+    }
+
+    .timeline-dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s ease;
+    }
+
+    .timeline-dot.running {
+        background: #3b82f6;
+        color: #fff;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .timeline-dot.done {
+        background: #10b981;
+        color: #fff;
+    }
+
+    .timeline-dot.error {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .dot-pulse {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #fff;
+        animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    .timeline-line {
+        width: 2px;
+        flex: 1;
+        min-height: 16px;
+        transition: background 0.3s ease;
+    }
+
+    .timeline-line.done {
+        background: #10b981;
+    }
+
+    .timeline-line.running {
+        background: linear-gradient(to bottom, #3b82f6, var(--border, #e2e8f0));
+    }
+
+    .timeline-line.error {
+        background: #ef4444;
+    }
+
+    .timeline-content {
+        padding-bottom: 1rem;
+        min-height: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .node-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .timeline-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text, #1a202c);
+    }
+
+    .node-cost {
+        font-size: 0.75rem;
+        color: var(--muted, #718096);
+    }
+
+    .node-status-tag {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .node-status-tag.running {
+        background: rgba(59, 130, 246, 0.12);
+        color: #3b82f6;
+    }
+
+    .node-status-tag.done {
+        background: rgba(16, 185, 129, 0.12);
+        color: #10b981;
+    }
+
+    .node-status-tag.error {
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+    }
+
+    .node-message {
+        font-size: 0.8rem;
+        color: var(--muted, #718096);
+        line-height: 1.4;
+    }
+
+    .node-data-section {
+        margin-top: 0.15rem;
+    }
+
+    .node-data-toggle {
+        font-size: 0.75rem;
+        color: #3b82f6;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.15rem 0;
+        font-weight: 500;
+    }
+
+    .node-data-toggle:hover {
+        text-decoration: underline;
+    }
+
+    .node-data-content {
+        margin: 0.35rem 0 0;
+        padding: 0.6rem 0.75rem;
+        background: var(--bg, #f1f5f9);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 8px;
+        font-size: 0.75rem;
+        line-height: 1.5;
+        overflow-x: auto;
+        max-height: 300px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+        color: var(--text, #1a202c);
+    }
+
+    .timeline-item.running .timeline-label {
+        color: #3b82f6;
+    }
+
+    /* 流式输出区域 */
+    .streaming-output {
+        background: var(--panel, #f8f9fa);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .output-header {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text, #1a202c);
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border, #e2e8f0);
+    }
+
+    .output-content {
+        font-size: 0.9rem;
+        line-height: 1.7;
+        color: var(--text, #1a202c);
         white-space: pre-wrap;
         word-break: break-word;
     }
 
-    .msg.user {
-        align-self: flex-end;
-        background: var(--user);
-        color: #fff;
-    }
-
-    .msg.assistant {
-        align-self: flex-start;
-        max-width: 100%;
-        background: var(--assistant);
-        border: 1px solid var(--border);
-    }
-
-    .msg.error {
-        align-self: stretch;
-        max-width: none;
-        background: rgba(248, 113, 113, 0.12);
-        border: 1px solid var(--error);
-        color: var(--error);
-        font-size: 0.9rem;
-    }
-
-    .msg.assistant.streaming::after {
-        content: "";
+    .cursor-blink {
         display: inline-block;
-        width: 6px;
+        width: 2px;
         height: 1em;
-        margin-left: 2px;
+        margin-left: 1px;
         vertical-align: text-bottom;
-        background: var(--accent);
-        border-radius: 2px;
+        background: var(--accent, #3b82f6);
         animation: blink 0.9s ease-in-out infinite;
     }
 
     @keyframes blink {
-        0%,
-        100% {
-            opacity: 1;
-        }
-
-        50% {
-            opacity: 0.2;
-        }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
     }
 
+    /* 空状态 */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 1rem;
+        color: var(--muted, #718096);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* 底部表单 */
     .chat-footer {
         padding: 0.75rem 1rem 1rem;
         border-top: 1px solid var(--border);

@@ -1,4 +1,4 @@
-import type { GenerateMarketReportOptions, MarketReportRequest } from '../types/marketReport'
+import type { GenerateMarketReportV3Options, MarketReportRequest } from '../types/marketReport'
 import { flushSseRemainder, processSseChunk } from '../utils/sseStream'
 
 const GENERATE_URL = '/api/report-v3'
@@ -18,39 +18,67 @@ function buildHeaders(): HeadersInit {
     return headers
 }
 
-async function readStreamBody(
+async function readStreamBodyV3(
     reader: ReadableStreamDefaultReader<Uint8Array>,
     isSse: boolean,
-    onEvent: (data: string) => void,
+    options: GenerateMarketReportV3Options,
 ): Promise<void> {
     const decoder = new TextDecoder()
     let sseRemainder = ''
-    let snapshot = ''
+    let contentSnapshot = ''
 
-    const emitEvent = (piece: string): void => {
-        if (!piece) {
+    const handleRawLine = (raw: string): void => {
+        let obj: Record<string, unknown>
+        try {
+            obj = JSON.parse(raw) as Record<string, unknown>
+        } catch {
+            contentSnapshot += raw
+            options.onContent(contentSnapshot)
             return
         }
-        snapshot += piece
-        onEvent(snapshot)
+
+        // NodeDetail 格式（无 type 字段，有 name + status）
+        if (!obj.type && typeof obj.name === 'string' && typeof obj.status === 'string') {
+            options.onNode({
+                name: obj.name as string,
+                message: (obj.message as string) ?? '',
+                data: (obj.data as string) ?? '',
+                status: obj.status as 'running' | 'done' | 'error',
+                costTime: (obj.costTime as string) ?? '',
+            })
+            return
+        }
+
+        // 旧格式兼容
+        if (obj.type === 'content' && obj.data) {
+            contentSnapshot += obj.data as string
+            options.onContent(contentSnapshot)
+        } else if (obj.type === 'node' && obj.name && obj.status) {
+            options.onNode({
+                name: obj.name as string,
+                message: '',
+                data: '',
+                status: obj.status as 'running' | 'done' | 'error',
+                costTime: '',
+            })
+        }
+        // 'done' 类型无需处理
     }
 
     const ingestSse = (raw: string): void => {
         sseRemainder += raw
-        sseRemainder = processSseChunk(sseRemainder, emitEvent)
+        sseRemainder = processSseChunk(sseRemainder, handleRawLine)
     }
 
     while (true) {
         const { done, value } = await reader.read()
-        if (done) {
-            break
-        }
+        if (done) break
 
         const chunk = decoder.decode(value, { stream: true })
         if (isSse) {
             ingestSse(chunk)
         } else {
-            emitEvent(chunk)
+            handleRawLine(chunk)
         }
     }
 
@@ -59,18 +87,18 @@ async function readStreamBody(
         if (isSse) {
             ingestSse(tail)
         } else {
-            emitEvent(tail)
+            handleRawLine(tail)
         }
     }
 
     if (isSse && sseRemainder.trim()) {
-        flushSseRemainder(sseRemainder, emitEvent)
+        flushSseRemainder(sseRemainder, handleRawLine)
     }
 }
 
 export async function generateMarketReportV3(
     request: MarketReportRequest,
-    options: GenerateMarketReportOptions,
+    options: GenerateMarketReportV3Options,
 ): Promise<void> {
     const response = await fetch(GENERATE_URL, {
         method: 'POST',
@@ -88,15 +116,11 @@ export async function generateMarketReportV3(
 
     const reader = response.body?.getReader()
     if (!reader) {
-        const text = await response.text()
-        if (text) {
-            options.onEvent(text)
-        }
         return
     }
 
     const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
     const isSse = contentType.includes('text/event-stream')
 
-    await readStreamBody(reader, isSse, options.onEvent)
+    await readStreamBodyV3(reader, isSse, options)
 }

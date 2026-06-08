@@ -24,6 +24,20 @@ public class MarketReportStateV3 extends AgentState {
     public static final String REPORT_SUMMARY_MERGE = "reportSummaryMerge";
     public static final String _STREAMING_MESSAGES = "_streaming_messages";
 
+    /** 节点名称 → 中文描述 */
+    public static final Map<String, String> NODE_LABELS = Map.of(
+            "query_reports", "查询市场简报",
+            "summary_item", "智能摘要分析",
+            "route_merge", "路由决策",
+            "streaming", "生成报告"
+    );
+
+    public static final Map<String, String> NODE_DATA = Map.of(
+            "query_reports", REPORT_ITEM_DETAIL,
+            "summary_item", REPORT_ITEM_SUMMARY,
+            "streaming", REPORT_SUMMARY_MERGE
+    );
+
     /**
      * 图的路由出口标识。由图内的路由节点（RouteMergeNode）决策后写入，
      * 图外的调用方（MarketReportAppV3）读取此字段来决定执行哪种流式操作。
