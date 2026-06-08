@@ -43,6 +43,78 @@ export default defineConfig({
           })
         },
       },
+      '/api/shopping': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        xfwd: true,
+        timeout: 3600000,
+        proxyTimeout: 3600000,
+        selfHandleResponse: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Accept', 'text/event-stream')
+            proxyReq.setHeader('Cache-Control', 'no-cache')
+            proxyReq.setHeader('Connection', 'keep-alive')
+            proxyReq.removeHeader('Accept-Encoding')
+          })
+          proxy.on('proxyRes', (proxyRes, _req, res) => {
+            const serverRes = res as ServerResponse
+            const headers: Record<string, string> = {
+              'content-type': 'text/event-stream',
+              'cache-control': 'no-cache, no-transform',
+              connection: 'keep-alive',
+              'x-accel-buffering': 'no',
+            }
+            serverRes.writeHead(proxyRes.statusCode ?? 200, headers)
+            serverRes.flushHeaders()
+            serverRes.socket?.setNoDelay?.(true)
+            proxyRes.socket?.setNoDelay?.(true)
+            proxyRes.on('data', (chunk: Buffer) => {
+              serverRes.write(chunk)
+            })
+            proxyRes.on('end', () => {
+              serverRes.end()
+            })
+          })
+        },
+      },
+      '/api/sse-test': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        xfwd: true,
+        timeout: 3600000,
+        proxyTimeout: 3600000,
+        selfHandleResponse: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Accept', 'text/event-stream')
+            proxyReq.setHeader('Cache-Control', 'no-cache')
+            proxyReq.setHeader('Connection', 'keep-alive')
+            proxyReq.removeHeader('Accept-Encoding')
+          })
+          proxy.on('proxyRes', (proxyRes, _req, res) => {
+            const serverRes = res as ServerResponse
+            const headers: Record<string, string> = {
+              'content-type': 'text/event-stream',
+              'cache-control': 'no-cache, no-transform',
+              connection: 'keep-alive',
+              'x-accel-buffering': 'no',
+            }
+            serverRes.writeHead(proxyRes.statusCode ?? 200, headers)
+            serverRes.flushHeaders()
+            serverRes.socket?.setNoDelay?.(true)
+            proxyRes.socket?.setNoDelay?.(true)
+            proxyRes.on('data', (chunk: Buffer) => {
+              serverRes.write(chunk)
+            })
+            proxyRes.on('end', () => {
+              serverRes.end()
+            })
+          })
+        },
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

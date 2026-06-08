@@ -3,10 +3,12 @@ import MarketReportChat from './components/MarketReportChat.vue'
 import MarketReportChatV3 from './components/MarketReportChatV3.vue'
 import EssayReviewChat from './components/EssayReviewChat.vue'
 import EssayMultiTurnChat from './components/EssayMultiTurnChat.vue'
+import ShoppingTimeline from './components/ShoppingTimeline.vue'
+import SseTestPage from './components/SseTestPage.vue'
 
-type TabKey = 'market-report' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn'
+type TabKey = 'market-report' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn' | 'shopping' | 'sse-test'
 
-const activeTab = ref<TabKey>('essay-multi-turn')
+const activeTab = ref<TabKey>('shopping')
 </script>
 
 <template>
@@ -36,6 +38,18 @@ const activeTab = ref<TabKey>('essay-multi-turn')
       >
         💬 作文批改（多轮对话）
       </button>
+      <button
+              :class="['tab-button', { active: activeTab === 'shopping' }]"
+              @click="activeTab = 'shopping'"
+      >
+        🛒 购物流程
+      </button>
+      <button
+              :class="['tab-button', { active: activeTab === 'sse-test' }]"
+              @click="activeTab = 'sse-test'"
+      >
+        🧪 SSE测试
+      </button>
     </nav>
 
     <div class="tab-content">
@@ -43,6 +57,8 @@ const activeTab = ref<TabKey>('essay-multi-turn')
       <MarketReportChatV3 v-else-if="activeTab === 'market-report-v3'" />
       <EssayReviewChat v-else-if="activeTab === 'essay-review'" />
       <EssayMultiTurnChat v-else-if="activeTab === 'essay-multi-turn'" />
+      <ShoppingTimeline v-else-if="activeTab === 'shopping'" />
+      <SseTestPage v-else-if="activeTab === 'sse-test'" />
     </div>
   </div>
 </template>
