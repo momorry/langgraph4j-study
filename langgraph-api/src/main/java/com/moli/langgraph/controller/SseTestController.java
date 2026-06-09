@@ -3,24 +3,25 @@ package com.moli.langgraph.controller;
 import com.moli.langgraph.graph.NodeDetail;
 import com.moli.langgraph.util.JsonUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 /**
  * SSE 纯 For 循环测试控制器
  * <p>
  * 不依赖 langgraph4j，仅用纯 for 循环 + sleep 模拟节点执行。
  * <p>
- * 使用 SseEmitter 而非 Flux&lt;ServerSentEvent&gt;，
- * 因为项目是 Spring MVC (Tomcat)，Flux 的 ReactiveTypeHandler
- * 不保证每个事件 flush，会导致事件缓冲一次性输出。
- * SseEmitter.send() + emitter.flush() 是 Spring MVC 下唯一可靠的逐帧推送方式。
+ * WebFlux 下使用 Flux&lt;ServerSentEvent&lt;T&gt;&gt; 原生支持逐帧 flush，
+ * ServerSentEventHttpMessageWriter 会对每个事件显式格式化并立即 flush，
+ * 无需像 MVC 那样依赖 SseEmitter + 手动 flush()。
  *
  * @author moli
  * @since 2026/6/8
@@ -33,51 +34,44 @@ public class SseTestController {
             "节点A-浏览", "节点B-加购", "节点C-支付", "节点D-发货", "节点E-收货"
     );
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
-
-    @PostMapping("/sse-test")
-    public SseEmitter sseTest() {
+    @PostMapping(value = "/sse-test", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> sseTest() {
         log.info("SSE测试开始");
-        // timeout = 0 表示永不超时
-        SseEmitter emitter = new SseEmitter(0L);
 
-        executor.execute(() -> {
-            try {
-                for (String name : NODE_NAMES) {
-                    // 发送 running
-                    emitNode(emitter, name, "running", "处理中...", "");
+        // 每个节点依次执行：先发 running，等 2 秒，再发 done
+        // 使用 concatMap 保证节点串行执行（flatMap 会并发）
+        return Flux.fromIterable(NODE_NAMES)
+                .concatMap(name -> {
+                    // running 事件立即发送
+                    ServerSentEvent<String> runningEvent = ServerSentEvent.<String>builder()
+                            .data(JsonUtil.obj2String(buildDetail(name, "running", "处理中...", "", "")))
+                            .build();
 
-                    // 模拟耗时 2 秒
-                    TimeUnit.SECONDS.sleep(2);
+                    // done 事件延迟 2 秒后发送
+                    ServerSentEvent<String> doneEvent = ServerSentEvent.<String>builder()
+                            .data(JsonUtil.obj2String(buildDetail(name, "done", "", "{\"result\":\"success\"}", "2.00秒")))
+                            .build();
 
-                    // 发送 done
-                    emitNode(emitter, name, "done", "", "{\"result\":\"success\"}");
-                }
-
-                // 完成事件
-                emitter.send(SseEmitter.event().data("{\"type\":\"done\"}"));
-                emitter.complete();
-                log.info("SSE测试完成");
-
-            } catch (Exception e) {
-                log.error("SSE测试失败", e);
-                emitter.completeWithError(e);
-            }
-        });
-
-        return emitter;
+                    // 先发 running，等 2 秒后发 done
+                    return Flux.just(runningEvent)
+                            .concatWith(Mono.just(doneEvent).delayElement(Duration.ofSeconds(2)));
+                })
+                // 所有节点完成后，发送 done 总事件
+                .concatWith(Flux.just(
+                        ServerSentEvent.<String>builder()
+                                .data(JsonUtil.obj2String(Map.of("type", "done")))
+                                .build()
+                ))
+                .doOnComplete(() -> log.info("SSE测试完成"));
     }
 
-    private void emitNode(SseEmitter emitter, String name, String status,
-                          String message, String data) throws Exception {
+    private NodeDetail buildDetail(String name, String status, String message, String data, String costTime) {
         NodeDetail detail = new NodeDetail();
         detail.setName(name);
         detail.setStatus(status);
         detail.setMessage(message);
         detail.setData(data);
-        detail.setCostTime("2.00秒");
-
-        emitter.send(SseEmitter.event().data(JsonUtil.obj2String(detail)));
-        // 关键：手动 flush，确保事件立即推送到客户端
+        detail.setCostTime(costTime);
+        return detail;
     }
 }

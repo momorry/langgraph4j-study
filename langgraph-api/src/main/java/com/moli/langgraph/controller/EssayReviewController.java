@@ -24,9 +24,8 @@ public class EssayReviewController {
     private final EssayReviewApp essayReviewApp;
 
     /**
-     * Flux在MVC模式下，会缓存，导致结果最后一次性输出。
-     *
      * 提交作文并获取流式评语（支持多轮对话）
+     * WebFlux 下 Flux<String> 可真正逐帧推送，无缓冲问题。
      *
      * @param request 请求参数（包含 sessionId、学生姓名、作文题目、用户消息）
      * @return 流式评语

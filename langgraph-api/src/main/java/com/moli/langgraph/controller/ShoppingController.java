@@ -23,7 +23,8 @@ public class ShoppingController {
     private final ShoppingApp shoppingApp;
 
     /**
-     * Flux在MVC模式下，会缓存，导致结果最后一次性输出。
+     * 购物流程流式接口
+     * WebFlux 下 Flux&lt;ServerSentEvent&gt; 可真正逐帧推送，无缓冲问题。
      * @param shoppingReq
      * @return
      */

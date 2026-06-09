@@ -23,7 +23,8 @@ public class MarketReportV3Controller {
     private final MarketReportAppV3 marketReportAppV3;
 
     /**
-     * Flux在MVC模式下，会缓存，导致结果最后一次性输出。
+     * 市场简报 V3 流式接口
+     * WebFlux 下 Flux&lt;ServerSentEvent&gt; 可真正逐帧推送，无缓冲问题。
      * @param marketReportReq
      * @return
      */
