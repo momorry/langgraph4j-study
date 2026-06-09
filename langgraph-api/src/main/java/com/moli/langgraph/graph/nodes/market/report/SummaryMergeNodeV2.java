@@ -35,12 +35,6 @@ public class SummaryMergeNodeV2 implements NodeAction<MarketReportStateV3> {
 
     private final MarketReportService marketReportService;
 
-    /**
-     * 有界队列容量。适度大以避免生产者突发推入时溢出；
-     * 配合 Flux 管道中的 delayElements 实现打字机效果。
-     */
-    private static final int QUEUE_CAPACITY = 10;
-
 
     @Override
     public Map<String, Object> apply(MarketReportStateV3 state) throws Exception {
@@ -57,7 +51,6 @@ public class SummaryMergeNodeV2 implements NodeAction<MarketReportStateV3> {
                         MarketReportStateV3.REPORT_SUMMARY_MERGE, accumulatedText.toString()))
                 .startingNode(MarketReportStateV3.REPORT_SUMMARY_MERGE)
                 .startingState(state)
-                .queue(new LinkedBlockingQueue<>(QUEUE_CAPACITY))
                 .build();
 
         // 获取 generator 内部的 StreamingChatResponseHandler
@@ -72,7 +65,7 @@ public class SummaryMergeNodeV2 implements NodeAction<MarketReportStateV3> {
                     // 生产者：每收到一个 chunk，累积并推入队列
                     accumulatedText.append(chunk);
                     handler.onPartialResponse(chunk);
-                    log.info("##chunk:{}", chunk);
+//                    log.info("##chunk:{}", chunk);
                 },
                 error -> {
                     // 异常处理：通知 handler 出错

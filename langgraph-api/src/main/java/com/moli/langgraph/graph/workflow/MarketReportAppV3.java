@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moli.langgraph.ai.service.MarketReportService;
 import com.moli.langgraph.client.MarketReportApiClient;
 import com.moli.langgraph.graph.NodeDetail;
-import com.moli.langgraph.graph.graph.MarketReportGraph;
+import com.moli.langgraph.graph.graph.MarketReportGraphV3;
 import com.moli.langgraph.graph.nodes.market.report.SummaryMergeNodeV3;
 import com.moli.langgraph.graph.state.MarketReportStateV3;
 import com.moli.langgraph.model.MarketReportReq;
@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.NodeOutput;
+import org.bsc.langgraph4j.streaming.StreamingOutput;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -65,7 +66,7 @@ public class MarketReportAppV3 {
 
 
     public Flux<ServerSentEvent<String>> report(MarketReportReq marketReportReq) {
-        MarketReportGraph graph = new MarketReportGraph(marketReportApiClient, marketReportService);
+        MarketReportGraphV3 graph = new MarketReportGraphV3(marketReportApiClient, marketReportService);
 
         return Flux.<ServerSentEvent<String>>create(sink -> {
                     try {
@@ -96,7 +97,9 @@ public class MarketReportAppV3 {
                         nodeDetail.setData("");
                         nodeDetail.setStatus("running");
                         nodeDetail.setCostTime("0秒");
-                        sink.next(ServerSentEvent.<String>builder().data(JsonUtil.obj2String(nodeDetail)).build());
+                        String s = JsonUtil.obj2String(nodeDetail);
+                        log.info("###{}",s);
+                        sink.next(ServerSentEvent.<String>builder().data(s).build());
 
                         ChatRequest chatRequest = switch (exitNode) {
                             case MarketReportStateV3.EXIT_FULL_REPORT -> {
@@ -126,8 +129,7 @@ public class MarketReportAppV3 {
                         log.error("执行预处理失败", e);
                         sink.error(e);
                     }
-                }).subscribeOn(Schedulers.boundedElastic())
-                .delayElements(Duration.ofMillis(50));
+                }, FluxSink.OverflowStrategy.IGNORE).subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
@@ -154,11 +156,13 @@ public class MarketReportAppV3 {
                 String data = JsonUtil.obj2String(nodeDetail);
                 ServerSentEvent<String> build = ServerSentEvent.builder(data).build();
                 sink.next(build);
+                log.info("###{}", data);
             }
-//            else if (output instanceof StreamingOutput<MarketReportStateV3> state) {
-//                sink.next(state.chunk());
-//
-//            }
+            else if (output instanceof StreamingOutput<MarketReportStateV3> state) {
+                log.info("###{}", state.chunk());
+                ServerSentEvent<String> build = ServerSentEvent.builder(state.chunk()).build();
+                sink.next(build);
+            }
         }
         return finalState;
     }
@@ -195,6 +199,7 @@ public class MarketReportAppV3 {
                     ServerSentEvent.Builder<String> builder = ServerSentEvent.builder();
                     try {
                         String json = mapper.writeValueAsString(Map.of("type", "content", "data", chunk));
+                        log.info("###{}",json);
                         sink.next(builder.data(json).build());
                     } catch (Exception e) {
                         // fallback: 手动转义特殊字符
@@ -203,7 +208,9 @@ public class MarketReportAppV3 {
                                 .replace("\n", "\\n")
                                 .replace("\r", "\\r")
                                 .replace("\t", "\\t");
-                        sink.next(builder.data("{\"type\":\"content\",\"data\":\"" + escaped + "\"}").build());
+                        String s = "{\"type\":\"content\",\"data\":\"" + escaped + "\"}";
+                        log.info("###{}",s , e);
+                        sink.next(builder.data(s).build());
                     }
                 }
             }

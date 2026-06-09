@@ -4,7 +4,7 @@ import com.moli.langgraph.ai.service.MarketReportService;
 import com.moli.langgraph.client.MarketReportApiClient;
 import com.moli.langgraph.graph.nodes.market.report.QueryReportsDetailNodeV3;
 import com.moli.langgraph.graph.nodes.market.report.RouteMergeNode;
-import com.moli.langgraph.graph.nodes.market.report.SummaryItemNodeV3;
+import com.moli.langgraph.graph.nodes.market.report.SummaryItemNode;
 import com.moli.langgraph.graph.state.MarketReportStateV3;
 import com.moli.langgraph.model.MarketReportReq;
 import lombok.Data;
@@ -30,7 +30,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 @Data
 @Slf4j
 @RequiredArgsConstructor
-public class MarketReportGraph {
+public class MarketReportGraphV3 {
 
     private final MarketReportApiClient marketReportApiClient;
     private final MarketReportService marketReportService;
@@ -62,7 +62,7 @@ public class MarketReportGraph {
         return new StateGraph<>(MarketReportStateV3.SCHEMA, MarketReportStateV3::new)
                 // 添加节点：预处理 + 路由决策
                 .addNode("query_reports", node_async(new QueryReportsDetailNodeV3(marketReportApiClient)))
-                .addNode("summary_item", node_async(new SummaryItemNodeV3(marketReportService)))
+                .addNode("summary_item", node_async(new SummaryItemNode(marketReportService)))
                 .addNode("route_merge", node_async(new RouteMergeNode()))
 
                 // 添加边

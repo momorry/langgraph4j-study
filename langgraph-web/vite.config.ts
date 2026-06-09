@@ -7,6 +7,34 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/report-v2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        xfwd: true,
+        timeout: 3600000,
+        proxyTimeout: 3600000,
+        selfHandleResponse: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Accept', 'text/event-stream')
+            proxyReq.setHeader('Cache-Control', 'no-cache')
+            proxyReq.setHeader('Connection', 'keep-alive')
+            proxyReq.removeHeader('Accept-Encoding')
+          })
+          proxy.on('proxyRes', (proxyRes, _req, res) => {
+            const serverRes = res as ServerResponse
+            serverRes.setHeader('content-type', 'text/event-stream; charset=utf-8')
+            serverRes.setHeader('cache-control', 'no-cache, no-transform')
+            serverRes.setHeader('connection', 'keep-alive')
+            serverRes.setHeader('x-accel-buffering', 'no')
+            serverRes.statusCode = proxyRes.statusCode ?? 200
+            serverRes.flushHeaders()
+            serverRes.socket?.setNoDelay?.(true)
+            proxyRes.pipe(serverRes)
+          })
+        },
+      },
       '/api/report-v3': {
         target: 'http://localhost:8080',
         changeOrigin: true,

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class SummaryItemNodeV3 implements NodeAction<MarketReportStateV3> {
+public class SummaryItemNode implements NodeAction<MarketReportStateV3> {
 
     private final MarketReportService marketReportService;
 

@@ -1,12 +1,13 @@
 <script setup lang="ts">import { ref } from 'vue'
 import MarketReportChat from './components/MarketReportChat.vue'
+import MarketReportChatV2 from './components/MarketReportChatV2.vue'
 import MarketReportChatV3 from './components/MarketReportChatV3.vue'
 import EssayReviewChat from './components/EssayReviewChat.vue'
 import EssayMultiTurnChat from './components/EssayMultiTurnChat.vue'
 import ShoppingTimeline from './components/ShoppingTimeline.vue'
 import SseTestPage from './components/SseTestPage.vue'
 
-type TabKey = 'market-report' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn' | 'shopping' | 'sse-test'
+type TabKey = 'market-report' | 'market-report-v2' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn' | 'shopping' | 'sse-test'
 
 const activeTab = ref<TabKey>('shopping')
 </script>
@@ -19,6 +20,12 @@ const activeTab = ref<TabKey>('shopping')
               @click="activeTab = 'market-report'"
       >
         📊 市场简报
+      </button>
+      <button
+              :class="['tab-button', { active: activeTab === 'market-report-v2' }]"
+              @click="activeTab = 'market-report-v2'"
+      >
+        📊 市场简报V2
       </button>
       <button
               :class="['tab-button', { active: activeTab === 'market-report-v3' }]"
@@ -54,6 +61,7 @@ const activeTab = ref<TabKey>('shopping')
 
     <div class="tab-content">
       <MarketReportChat v-if="activeTab === 'market-report'" />
+      <MarketReportChatV2 v-else-if="activeTab === 'market-report-v2'" />
       <MarketReportChatV3 v-else-if="activeTab === 'market-report-v3'" />
       <EssayReviewChat v-else-if="activeTab === 'essay-review'" />
       <EssayMultiTurnChat v-else-if="activeTab === 'essay-multi-turn'" />
