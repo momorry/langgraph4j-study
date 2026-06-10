@@ -1,16 +1,16 @@
 langchain4j:
   open-ai:
     chat-model:
-      base-url: 111
-      api-key: 111
-      model-name: 111
+      base-url: http://llm.smart-zone-dev.gf.com.cn/api/oai/v1
+      api-key: 5cc90555-6ddb-44b6-895b-4b47d33e4570
+      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
       log-requests: true
       log-responses: true
     # Flux / TokenStream 等流式调用需要 StreamingChatModel，与 chat-model 分开注册
     streaming-chat-model:
-      base-url: 111
-      api-key: 111
-      model-name: 111
+      base-url: http://llm.smart-zone-dev.gf.com.cn/api/oai/v1
+      api-key: 5cc90555-6ddb-44b6-895b-4b47d33e4570
+      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
       log-requests: true
       log-responses: true
 
@@ -23,7 +23,7 @@ logging:
 
 
 market-report:
-  token: Bearer 1.eyJzc29BY2Nlc3NUb2tlbiI6ImRhZWNhOGNiLWVmZTMtNDY2Zi05N2JhLWVkZTcxNTE1MmFhYiIsInNzb1JlZnJlc2hUb2tlbiI6ImRmYTNkZWU2LTI4NzUtNDUwOS05OTUzLWE5MzZlYTIwNzg5ZiIsInN0YXR1c0Rlc2MiOiLlnKjogYwiLCJuYW1lIjoi6buE5pWP6ImvIiwic3lzQWRtaW4iOnRydWUsInRva2VuVHlwZSI6ImFjY2Vzc190b2tlbiIsInVzZXJOYW1lIjoiaHVhbmdtaW5saWFuZyIsImV4cCI6MTc3OTk0OTY0NCwic3VwZXJBZG1pbiI6dHJ1ZSwidXNlcklkIjoxODksImlhdCI6MTc3OTA4NTY0NCwic3RhdHVzIjoxfQ.ZCjOfRTlPiGdomtwXptDWIhR1XuuP8vVbHYWWg7GzwI
+  token: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzc29BY2Nlc3NUb2tlbiI6IjQ1MzJjYzE4LTY4YmEtNDFiMS05NDU4LTlhYzg2ODhhYzhlNCIsInNzb1JlZnJlc2hUb2tlbiI6ImJmNDFlNWE4LTE0ODYtNGY4ZC1hZjNjLTFmOWMyODhmZTcxZSIsInN0YXR1c0Rlc2MiOiLlnKjogYwiLCJuYW1lIjoi6buE5pWP6ImvIiwic3lzQWRtaW4iOnRydWUsInRva2VuVHlwZSI6ImFjY2Vzc190b2tlbiIsInVzZXJOYW1lIjoiaHVhbmdtaW5saWFuZyIsImV4cCI6MTc4MTg1OTI2Nywic3VwZXJBZG1pbiI6dHJ1ZSwidXNlcklkIjoxODksImlhdCI6MTc4MDk5NTI2Nywic3RhdHVzIjoxfQ.CcoTL0_hQtZoqz8_iuFzik2wBfB3_6_HrY_V3t5reD4
   reports-url: http://127.0.0.1:9204/public-reports
   report-detail-url: http://127.0.0.1:9204/public-report-detail
   report-details-url: http://127.0.0.1:9204/public-reports-detail
