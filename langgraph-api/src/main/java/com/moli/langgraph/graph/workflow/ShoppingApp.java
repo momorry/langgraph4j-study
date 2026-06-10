@@ -89,7 +89,7 @@ public class ShoppingApp {
                 log.error("购物流程执行失败", e);
                 sink.error(e);
             }
-        }).subscribeOn(Schedulers.boundedElastic());
+        }, FluxSink.OverflowStrategy.IGNORE).subscribeOn(Schedulers.boundedElastic());
     }
 
     /**

@@ -126,8 +126,7 @@ public class MarketReportAppV3 {
                         log.error("执行预处理失败", e);
                         sink.error(e);
                     }
-                }).subscribeOn(Schedulers.boundedElastic())
-                .delayElements(Duration.ofMillis(50));
+                }, FluxSink.OverflowStrategy.IGNORE).subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
