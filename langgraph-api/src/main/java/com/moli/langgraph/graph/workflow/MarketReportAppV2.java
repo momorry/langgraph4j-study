@@ -17,8 +17,6 @@ import org.bsc.langgraph4j.streaming.StreamingOutput;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.Map;
 
@@ -57,67 +55,69 @@ public class MarketReportAppV2 {
     public Flux<ServerSentEvent<String>> report(MarketReportReq marketReportReq) {
         MarketReportGraphV2 graph = new MarketReportGraphV2(marketReportApiClient, marketReportService);
 
-        return Flux.<ServerSentEvent<String>>create(sink -> {
-                    try {
-                        // ===== 构建图并流式执行 =====
-                        // 图结构：START → query_reports → summary_item → summary_merge → END
-                        // summary_merge 节点内部使用 StreamingChatGenerator，
-                        // 框架会自动将其输出转为 StreamingOutput（打字机效果）
-                        CompiledGraph<MarketReportStateV3> compiledGraph = graph.buildGraph();
-                        AsyncGenerator<NodeOutput<MarketReportStateV3>> stream =
-                                compiledGraph.stream(graph.buildInitState(marketReportReq));
+        Flux<ServerSentEvent<String>> serverSentEventFlux = Flux.<ServerSentEvent<String>>create(sink -> {
+            try {
+                // ===== 构建图并流式执行 =====
+                // 图结构：START → query_reports → summary_item → summary_merge → END
+                // summary_merge 节点内部使用 StreamingChatGenerator，
+                // 框架会自动将其输出转为 StreamingOutput（打字机效果）
+                CompiledGraph<MarketReportStateV3> compiledGraph = graph.buildGraph();
+                AsyncGenerator<NodeOutput<MarketReportStateV3>> stream =
+                        compiledGraph.stream(graph.buildInitState(marketReportReq));
 
-                        long start = System.currentTimeMillis();
-                        long end;
+                long start = System.currentTimeMillis();
+                long end;
 
-                        for (NodeOutput<MarketReportStateV3> nodeOutput : stream) {
-                            if (nodeOutput instanceof StreamingOutput<MarketReportStateV3> streamingOutput) {
-                                // ===== 流式 chunk 输出（打字机效果） =====
-                                // SummaryMergeNodeV2 通过 StreamingChatGenerator 产生的流式数据
-                                String chunk = streamingOutput.chunk();
-                                if (chunk != null && !chunk.isEmpty()) {
-                                    String json = JsonUtil.obj2String(Map.of("type", "content", "data", chunk));
-                                    log.info("###{}", json);
-                                    sink.next(ServerSentEvent.<String>builder().data(json).build());
-                                }
-                            } else {
-                                // ===== 节点完成事件 =====
-                                // 每个非流式节点（query_reports / summary_item / summary_merge）完成时触发
-                                end = System.currentTimeMillis();
-                                String node = nodeOutput.node();
-                                MarketReportStateV3 state = nodeOutput.state();
-
-                                NodeDetail nodeDetail = new NodeDetail();
-                                nodeDetail.setName(MarketReportStateV3.NODE_LABELS.getOrDefault(node, node));
-                                nodeDetail.setMessage("");
-                                String dataKey = MarketReportStateV3.NODE_DATA.get(node);
-                                nodeDetail.setData(dataKey != null
-                                        ? JsonUtil.obj2String(state.data().get(dataKey))
-                                        : "");
-                                nodeDetail.setStatus("done");
-                                nodeDetail.setCostTime((end - start) / 1000d + "秒");
-                                start = end;
-
-                                String data = JsonUtil.obj2String(nodeDetail);
-                                log.info("###{}", data);
-                                sink.next(ServerSentEvent.<String>builder().data(data).build());
-                            }
+                for (NodeOutput<MarketReportStateV3> nodeOutput : stream) {
+                    if (nodeOutput instanceof StreamingOutput<MarketReportStateV3> streamingOutput) {
+                        // ===== 流式 chunk 输出（打字机效果） =====
+                        // SummaryMergeNodeV2 通过 StreamingChatGenerator 产生的流式数据
+                        String chunk = streamingOutput.chunk();
+                        if (chunk != null && !chunk.isEmpty()) {
+                            String json = JsonUtil.obj2String(Map.of("type", "content", "data", chunk));
+                            log.info("###{}", json);
+                            sink.next(ServerSentEvent.<String>builder().data(json).build());
                         }
+                    } else {
+                        // ===== 节点完成事件 =====
+                        // 每个非流式节点（query_reports / summary_item / summary_merge）完成时触发
+                        end = System.currentTimeMillis();
+                        String node = nodeOutput.node();
+                        MarketReportStateV3 state = nodeOutput.state();
 
-                        // ===== 流式输出结束，发送 done 事件 =====
-                        sink.next(ServerSentEvent.<String>builder()
-                                .data(JsonUtil.obj2String(Map.of("type", "done"))).build());
-                        sink.complete();
+                        NodeDetail nodeDetail = new NodeDetail();
+                        nodeDetail.setName(MarketReportStateV3.NODE_LABELS.getOrDefault(node, node));
+                        nodeDetail.setMessage("");
+                        String dataKey = MarketReportStateV3.NODE_DATA.get(node);
+                        nodeDetail.setData(dataKey != null
+                                ? JsonUtil.obj2String(state.data().get(dataKey))
+                                : "");
+                        nodeDetail.setStatus("done");
+                        nodeDetail.setCostTime((end - start) / 1000d + "秒");
+                        start = end;
 
-                    } catch (GraphStateException e) {
-                        log.error("构建图失败", e);
-                        sink.error(e);
-                    } catch (Exception e) {
-                        log.error("执行图流式输出失败", e);
-                        sink.error(e);
+                        String data = JsonUtil.obj2String(nodeDetail);
+                        log.info("###{}", data);
+                        sink.next(ServerSentEvent.<String>builder().data(data).build());
                     }
-                },
-                FluxSink.OverflowStrategy.IGNORE).subscribeOn(Schedulers.boundedElastic());
+                }
+
+                // ===== 流式输出结束，发送 done 事件 =====
+                sink.next(ServerSentEvent.<String>builder()
+                        .data(JsonUtil.obj2String(Map.of("type", "done"))).build());
+                sink.complete();
+
+            } catch (GraphStateException e) {
+                log.error("构建图失败", e);
+                sink.error(e);
+            } catch (Exception e) {
+                log.error("执行图流式输出失败", e);
+                sink.error(e);
+            }
+        });
+
+        serverSentEventFlux.subscribe();
+        return serverSentEventFlux;
     }
 
 }

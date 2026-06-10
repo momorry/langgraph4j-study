@@ -19,6 +19,10 @@ public interface MarketReportService {
     @UserMessage("以下是公告信息：{{reports}}")
     String summary(@V("reports") String reports);
 
+    @SystemMessage(fromResource = "prompt/summary-report.md")
+    @UserMessage("以下是公告信息：{{reports}}")
+    Flux<String> asyncSummary(@V("reports") String reports);
+
     @SystemMessage(fromResource = "prompt/summary-merge.md")
     @UserMessage("以下待合并信息：{{itemSummary}}")
     Flux<String> summaryMerge(@V("itemSummary") String itemSummary);

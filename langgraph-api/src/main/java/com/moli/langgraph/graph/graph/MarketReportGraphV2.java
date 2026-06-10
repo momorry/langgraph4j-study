@@ -3,7 +3,7 @@ package com.moli.langgraph.graph.graph;
 import com.moli.langgraph.ai.service.MarketReportService;
 import com.moli.langgraph.client.MarketReportApiClient;
 import com.moli.langgraph.graph.nodes.market.report.QueryReportsDetailNodeV3;
-import com.moli.langgraph.graph.nodes.market.report.SummaryItemNode;
+import com.moli.langgraph.graph.nodes.market.report.SummaryItemNodeV2Async;
 import com.moli.langgraph.graph.nodes.market.report.SummaryMergeNodeV2;
 import com.moli.langgraph.graph.state.MarketReportStateV3;
 import com.moli.langgraph.model.MarketReportReq;
@@ -43,7 +43,7 @@ public class MarketReportGraphV2 {
         return new StateGraph<>(MarketReportStateV3.SCHEMA, MarketReportStateV3::new)
                 // 添加节点
                 .addNode("query_reports", node_async(new QueryReportsDetailNodeV3(marketReportApiClient)))
-                .addNode("summary_item", node_async(new SummaryItemNode(marketReportService)))
+                .addNode("summary_item", node_async(new SummaryItemNodeV2Async(marketReportService)))
                 .addNode("summary_merge", node_async(new SummaryMergeNodeV2(marketReportService)))
 
                 // 添加边
@@ -62,7 +62,7 @@ public class MarketReportGraphV2 {
         Map<String, Object> state = new HashMap<>();
         state.put(MarketReportStateV3.START_DATE, reportReq.getStartDate());
         state.put(MarketReportStateV3.END_DATE, reportReq.getEndDate());
-        state.put(MarketReportStateV3.STOCK_CODES, String.join("\n", reportReq.getStockCodes()));
+        state.put(MarketReportStateV3.STOCK_CODES, String.join(",", reportReq.getStockCodes()));
         return state;
     }
 

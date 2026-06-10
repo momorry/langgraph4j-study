@@ -10,6 +10,7 @@ import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.NodeOutput;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
@@ -38,7 +39,7 @@ public class ShoppingApp {
     public Flux<ServerSentEvent<String>> shopping(ShoppingReq shoppingReq) {
         ShoppingGraph graph = new ShoppingGraph();
 
-        return Flux.<ServerSentEvent<String>>create(sink -> {
+        Flux<ServerSentEvent<String>> serverSentEventFlux = Flux.<ServerSentEvent<String>>create(sink -> {
             try {
                 CompiledGraph<ShoppingState> compiledGraph = graph.buildGraph();
                 Map<String, Object> initState = graph.buildInitState(shoppingReq.getProduct());
@@ -89,7 +90,10 @@ public class ShoppingApp {
                 log.error("购物流程执行失败", e);
                 sink.error(e);
             }
-        }, FluxSink.OverflowStrategy.IGNORE).subscribeOn(Schedulers.boundedElastic());
+        });
+
+        Disposable subscribe = serverSentEventFlux.subscribe();
+        return serverSentEventFlux;
     }
 
     /**
