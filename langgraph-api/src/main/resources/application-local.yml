@@ -1,29 +1,83 @@
-langchain4j:
-  open-ai:
-    chat-model:
-      base-url: http://llm.smart-zone-dev.gf.com.cn/api/oai/v1
-      api-key: 5cc90555-6ddb-44b6-895b-4b47d33e4570
-      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
-      log-requests: true
-      log-responses: true
-    # Flux / TokenStream 等流式调用需要 StreamingChatModel，与 chat-model 分开注册
-    streaming-chat-model:
-      base-url: http://llm.smart-zone-dev.gf.com.cn/api/oai/v1
-      api-key: 5cc90555-6ddb-44b6-895b-4b47d33e4570
-      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
-      log-requests: true
-      log-responses: true
+spring:
+  #mysql相关配置
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://10.xx.67.xx:4000/xxx?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true&useCursorFetch=true&rewriteBatchedStatements=true
+    username: xxx
+    password: xxx
+    hikari:
+      minimum-idle: 10
+      # 空闲连接存活最大时间，默认600000（10分钟）
+      idle-timeout: 180000
+      # 连接池最大连接数，默认是10
+      maximum-pool-size: 40
+      # 连接池名称
+      pool-name: MyHikariCP
+      # 此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认1800000即30分钟
+      max-lifetime: 1800000
+      # 数据库连接超时时间,默认30秒，即30000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      FAIL_ON_EMPTY_BEANS: false #解决mybatis 级联查询懒加载对象无法序列化问题
+    generator:
+      WRITE_BIGDECIMAL_AS_PLAIN: true #不使用科学计数法
+#  redis:
+#    enabled: true # 自定义属性
+#    password: xxx
+#    timeout: 200
+#    connect-timeout: 5000
+#    cluster:
+#      nodes: ip1:port1,...
+
+#mybatis plus
+mybatis-plus:
+  type-aliases-package: cn.com.gf.iresearch.smartdata.common.dao.entity
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    # 驼峰下划线转换
+    map-underscore-to-camel-case: true
+    # 配置的缓存的全局开关
+    cache-enabled: true
+    # 延时加载的开关
+    lazy-loading-enabled: true
+    # 开启的话，延时加载一个属性时会加载该对象全部属性，否则按需加载属性
+    multiple-result-sets-enabled: true
+    use-generated-keys: false
+    default-statement-timeout: 120
+    default-fetch-size: 100
 
 logging:
   config: classpath:spring-logback.xml
   level:
     root: info
     com:
-      shangjian: debug
+      moli: debug
+
+
+langchain4j:
+  open-ai:
+    chat-model:
+      base-url: http://llm.smart-zone-dev/api/oai/v1
+      api-key: xxx
+      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
+      log-requests: true
+      log-responses: true
+    # Flux / TokenStream 等流式调用需要 StreamingChatModel，与 chat-model 分开注册
+    streaming-chat-model:
+      base-url: http://llm.smart-zone-dev/api/oai/v1
+      api-key: xxx
+      model-name: external-deepseek-v4-flash      #external-deepseek-v4-pro-non-thinking #internal-qwen3-30b-a3b
+      log-requests: true
+      log-responses: true
 
 
 market-report:
-  token: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzc29BY2Nlc3NUb2tlbiI6IjQ1MzJjYzE4LTY4YmEtNDFiMS05NDU4LTlhYzg2ODhhYzhlNCIsInNzb1JlZnJlc2hUb2tlbiI6ImJmNDFlNWE4LTE0ODYtNGY4ZC1hZjNjLTFmOWMyODhmZTcxZSIsInN0YXR1c0Rlc2MiOiLlnKjogYwiLCJuYW1lIjoi6buE5pWP6ImvIiwic3lzQWRtaW4iOnRydWUsInRva2VuVHlwZSI6ImFjY2Vzc190b2tlbiIsInVzZXJOYW1lIjoiaHVhbmdtaW5saWFuZyIsImV4cCI6MTc4MTg1OTI2Nywic3VwZXJBZG1pbiI6dHJ1ZSwidXNlcklkIjoxODksImlhdCI6MTc4MDk5NTI2Nywic3RhdHVzIjoxfQ.CcoTL0_hQtZoqz8_iuFzik2wBfB3_6_HrY_V3t5reD4
+  token: asdasd
   reports-url: http://127.0.0.1:9204/public-reports
   report-detail-url: http://127.0.0.1:9204/public-report-detail
   report-details-url: http://127.0.0.1:9204/public-reports-detail

@@ -1,4 +1,5 @@
 <script setup lang="ts">import { ref } from 'vue'
+import StreamChat from './components/StreamChat.vue'
 import MarketReportChat from './components/MarketReportChat.vue'
 import MarketReportChatV2 from './components/MarketReportChatV2.vue'
 import MarketReportChatV3 from './components/MarketReportChatV3.vue'
@@ -7,14 +8,20 @@ import EssayMultiTurnChat from './components/EssayMultiTurnChat.vue'
 import ShoppingTimeline from './components/ShoppingTimeline.vue'
 import SseTestPage from './components/SseTestPage.vue'
 
-type TabKey = 'market-report' | 'market-report-v2' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn' | 'shopping' | 'sse-test'
+type TabKey = 'stream-chat' | 'market-report' | 'market-report-v2' | 'market-report-v3' | 'essay-review' | 'essay-multi-turn' | 'shopping' | 'sse-test'
 
-const activeTab = ref<TabKey>('shopping')
+const activeTab = ref<TabKey>('stream-chat')
 </script>
 
 <template>
   <div class="app-container">
     <nav class="tab-nav">
+      <button
+              :class="['tab-button', { active: activeTab === 'stream-chat' }]"
+              @click="activeTab = 'stream-chat'"
+      >
+        💬 AI 对话
+      </button>
       <button
               :class="['tab-button', { active: activeTab === 'market-report' }]"
               @click="activeTab = 'market-report'"
@@ -60,7 +67,8 @@ const activeTab = ref<TabKey>('shopping')
     </nav>
 
     <div class="tab-content">
-      <MarketReportChat v-if="activeTab === 'market-report'" />
+      <StreamChat v-if="activeTab === 'stream-chat'" />
+      <MarketReportChat v-else-if="activeTab === 'market-report'" />
       <MarketReportChatV2 v-else-if="activeTab === 'market-report-v2'" />
       <MarketReportChatV3 v-else-if="activeTab === 'market-report-v3'" />
       <EssayReviewChat v-else-if="activeTab === 'essay-review'" />
@@ -73,9 +81,10 @@ const activeTab = ref<TabKey>('shopping')
 
 <style>
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .tab-nav {
@@ -84,6 +93,7 @@ const activeTab = ref<TabKey>('shopping')
   padding: 0.75rem 1.25rem;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .tab-button {
@@ -110,5 +120,7 @@ const activeTab = ref<TabKey>('shopping')
 
 .tab-content {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

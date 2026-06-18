@@ -3,6 +3,10 @@ spring:
     name: langgraph-api
   profiles:
     active: local
+  main:
+    allow-bean-definition-overriding: true
+
+
 server:
   port: 8080
 
