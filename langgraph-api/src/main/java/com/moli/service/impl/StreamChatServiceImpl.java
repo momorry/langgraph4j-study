@@ -60,7 +60,7 @@ public class StreamChatServiceImpl implements StreamChatService {
         NormalAgent normalAgent = AiServices.builder(NormalAgent.class).tools(new WeatherTools()).streamingChatModel(streamingChatModel)
                 .build();
         TokenStream tokenStream = normalAgent.execute(streamChatReq.getQuestion());
-        Flux<ServerSentEvent<String>> flux = Flux.create(sink -> {
+        Flux<ServerSentEvent<String>> flux = Flux.<ServerSentEvent<String>>create(sink -> {
             tokenStream.onPartialThinking(partialThinking -> {
                         ServerSentEvent<String> event = ServerSentEvent.<String>builder()
                                 .data(partialThinking.text()).build();
@@ -87,7 +87,7 @@ public class StreamChatServiceImpl implements StreamChatService {
                         log.info("", throwable);
                     }).start();
 
-        });
+        }).subscribeOn(Schedulers.boundedElastic());
 
         return flux;
     }
