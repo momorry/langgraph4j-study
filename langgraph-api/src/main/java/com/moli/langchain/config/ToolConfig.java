@@ -8,10 +8,10 @@ import dev.langchain4j.service.tool.ToolProviderResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+//@Configuration
 public class ToolConfig {
 
-    @Bean
+//    @Bean
     public ToolProvider toolProvider() {
         DefaultToolExecutor toolExecutor = DefaultToolExecutor.builder().object("").build();
         return (toolProviderRequest) -> {

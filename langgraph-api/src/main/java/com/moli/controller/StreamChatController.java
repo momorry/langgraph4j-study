@@ -23,7 +23,7 @@ public class StreamChatController {
         // 禁用缓冲（必要）
 //        response.getHeaders().set("X-Accel-Buffering", "no");
 //        response.getHeaders().set("Cache-Control", "no-cache");
-        return streamChatService.streamChat2(streamChatReq);
+        return streamChatService.streamChat3(streamChatReq);
     }
 
 
